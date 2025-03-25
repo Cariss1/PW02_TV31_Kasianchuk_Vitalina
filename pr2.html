@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Калькулятор викидів твердих частинок</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { border-collapse: collapse; margin: 15px 0; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        input { width: 100%; padding: 5px; }
+        button { padding: 8px 15px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        .result { margin-top: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 5px; }
+        .error { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>Розрахунок викидів твердих частинок</h2>
+    
+    <form id="fuelForm">
+        <h3>Вхідні параметри:</h3>
+        
+        <table>
+            <tr>
+                <th>Параметр</th>
+                <th>Вугілля</th>
+                <th>Мазут</th>
+                <th>Природний газ</th>
+            </tr>
+            <tr>
+                <td>Витрата палива (B)</td>
+                <td><input type="number" step="0.01" name="coal_B" placeholder="тонни"></td>
+                <td><input type="number" step="0.01" name="oil_B" placeholder="тонни"></td>
+                <td><input type="number" step="0.01" name="gas_B" placeholder="тис. м³"></td>
+            </tr>
+            <tr>
+                <td>Зольність (A<sup>c</sup>), %</td>
+                <td><input type="number" step="0.1" name="coal_Ac"></td>
+                <td><input type="number" step="0.01" name="oil_Ac"></td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td>Теплота згоряння (Q<sub>i</sub><sup>p</sup>)</td>
+                <td><input type="number" step="0.01" name="coal_Q" placeholder="МДж/кг"></td>
+                <td><input type="number" step="0.01" name="oil_Q" placeholder="МДж/кг"></td>
+                <td><input type="number" step="0.01" name="gas_Q" placeholder="МДж/м³"></td>
+            </tr>
+        </table>
+        
+        <p>
+            <label for="eta">Ефективність золоуловлювання (η<sub>зу</sub>):</label>
+            <input type="number" step="0.001" name="eta" id="eta" value="0.985" min="0" max="1">
+        </p>
+        
+        <button type="button" onclick="calculateEmissions()">Розрахувати</button>
+    </form>
+    
+    <div id="results" class="result">
+        <h3>Результати розрахунків:</h3>
+        <div id="error" class="error"></div>
+        <p><strong>Вугілля:</strong></p>
+        <ul>
+            <li>Показник емісії (k<sub>тв</sub>): <span id="coal_k">-</span> г/ГДж</li>
+            <li>Валовий викид (E<sub>тв</sub>): <span id="coal_E">-</span> т</li>
+        </ul>
+        
+        <p><strong>Мазут:</strong></p>
+        <ul>
+            <li>Показник емісії (k<sub>тв</sub>): <span id="oil_k">-</span> г/ГДж</li>
+            <li>Валовий викид (E<sub>тв</sub>): <span id="oil_E">-</span> т</li>
+        </ul>
+        
+        <p><strong>Природний газ:</strong></p>
+        <ul>
+            <li>Показник емісії (k<sub>тв</sub>): <span id="gas_k">0</span> г/ГДж</li>
+            <li>Валовий викид (E<sub>тв</sub>): <span id="gas_E">0</span> т</li>
+        </ul>
+    </div>
+
+    <script>
+        function calculateEmissions() {
+            // Очистити попередні помилки
+            document.getElementById('error').textContent = '';
+            
+            try {
+                // Отримання значень з форми
+                const coal_B = parseFloat(document.querySelector('input[name="coal_B"]').value) || 0;
+                const oil_B = parseFloat(document.querySelector('input[name="oil_B"]').value) || 0;
+                const gas_B = parseFloat(document.querySelector('input[name="gas_B"]').value) || 0;
+                
+                const coal_Ac = parseFloat(document.querySelector('input[name="coal_Ac"]').value) || 0;
+                const oil_Ac = parseFloat(document.querySelector('input[name="oil_Ac"]').value) || 0;
+                
+                const coal_Q = parseFloat(document.querySelector('input[name="coal_Q"]').value) || 0;
+                const oil_Q = parseFloat(document.querySelector('input[name="oil_Q"]').value) || 0;
+                const gas_Q = parseFloat(document.querySelector('input[name="gas_Q"]').value) || 0;
+                
+                const eta = parseFloat(document.querySelector('input[name="eta"]').value) || 0;
+                
+                // Перевірка коректності даних
+                if (eta < 0 || eta > 1) {
+                    throw new Error("Ефективність золоуловлювання повинна бути між 0 та 1");
+                }
+                
+                // Розрахунки для вугілля
+                let coal_k = 0;
+                let coal_E = 0;
+                if (coal_Q > 0) {
+                    coal_k = (coal_Ac * (1 - eta) / coal_Q) * 1e6;
+                    coal_E = 1e-6 * coal_k * coal_Q * coal_B;
+                }
+                
+                // Розрахунки для мазуту
+                let oil_k = 0;
+                let oil_E = 0;
+                if (oil_Q > 0) {
+                    oil_k = (oil_Ac * (1 - eta) / oil_Q) * 1e6;
+                    oil_E = 1e-6 * oil_k * oil_Q * oil_B;
+                }
+                
+                // Природний газ - викидів немає
+                const gas_k = 0;
+                const gas_E = 0;
+                
+                // Вивід результатів
+                document.getElementById('coal_k').textContent = coal_k.toFixed(2);
+                document.getElementById('coal_E').textContent = coal_E.toFixed(2);
+                document.getElementById('oil_k').textContent = oil_k.toFixed(2);
+                document.getElementById('oil_E').textContent = oil_E.toFixed(2);
+                document.getElementById('gas_k').textContent = gas_k.toFixed(2);
+                document.getElementById('gas_E').textContent = gas_E.toFixed(2);
+                
+            } catch (error) {
+                document.getElementById('error').textContent = 'Помилка: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
